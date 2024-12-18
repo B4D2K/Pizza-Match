@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Pizza Fusion</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="start-screen" class="screen">
+            <h1>Pizza Fusion</h1>
+            <button id="start-button">Start Game</button>
+            <div id="leaderboard">
+                <h2>Leaderboard</h2>
+                <div id="scores-list"></div>
+            </div>
+        </div>
+        
+        <div id="game-screen" class="screen hidden">
+            <div id="game-stats">
+                <div id="score">Score: 0</div>
+                <div id="next-ingredient">Next:</div>
+            </div>
+            <canvas id="game-canvas"></canvas>
+        </div>
+
+        <div id="game-over-screen" class="screen hidden">
+            <h2>Game Over</h2>
+            <div id="final-score"></div>
+            <button id="restart-button">Play Again</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <script src="js/constants.js"></script>
+    <script src="js/ingredients.js"></script>
+    <script src="js/audio-manager.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html> 
