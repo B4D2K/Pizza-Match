@@ -1,11 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
     let game = null;
+    let currentPlayerName = '';
 
     function updateLeaderboard() {
-        const scores = JSON.parse(localStorage.getItem('highScores') || '[]');
+        const leaderboard = JSON.parse(localStorage.getItem('leaderboard') || '[]');
         const scoresList = document.getElementById('scores-list');
-        scoresList.innerHTML = scores
-            .map((score, index) => `<div>${index + 1}. ${score}</div>`)
+        scoresList.innerHTML = leaderboard
+            .map((entry, index) => `<div>${index + 1}. ${entry.name || 'Anonymous'} - ${entry.score}</div>`)
             .join('');
     }
 
@@ -41,8 +42,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function showNameScreen() {
+        showScreen('player-name-screen');
+        document.getElementById('player-name').focus();
+    }
+
+    function handleNameConfirmation() {
+        const nameInput = document.getElementById('player-name');
+        currentPlayerName = nameInput.value.trim() || 'Anonymous';
+        startGame();
+    }
+
     // Event Listeners
-    document.getElementById('start-button').addEventListener('click', startGame);
+    document.getElementById('start-button').addEventListener('click', () => {
+        showNameScreen();
+    });
+
+    document.getElementById('confirm-name').addEventListener('click', handleNameConfirmation);
+    document.getElementById('skip-name').addEventListener('click', () => {
+        currentPlayerName = 'Anonymous';
+        startGame();
+    });
+
+    // Handle Enter key in name input
+    document.getElementById('player-name').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            handleNameConfirmation();
+        }
+    });
+
     document.getElementById('restart-button').addEventListener('click', async () => {
         showScreen('game-screen');
         try {
@@ -54,6 +82,53 @@ document.addEventListener('DOMContentLoaded', () => {
             game = new Game();
         }
     });
+
+    // Listener para redimensionamento do jogo
+    window.addEventListener('gameResized', (event) => {
+        if (game) {
+            // Salvar estado atual
+            const currentScore = game.score;
+            const currentIngredients = game.nextIngredients;
+            const currentCombo = game.comboMultiplier;
+            
+            // Recriar o jogo com as novas dimensões
+            game = new Game();
+            
+            // Restaurar estado
+            game.score = currentScore;
+            game.nextIngredients = currentIngredients;
+            game.comboMultiplier = currentCombo;
+            game.updateNextIngredientDisplay();
+        }
+    });
+
+    // Modificar o Game Over para incluir o nome do jogador
+    Game.prototype.handleGameOver = function() {
+        // Hide sequence board
+        const sequenceBoard = document.getElementById('sequence-board');
+        if (sequenceBoard) {
+            sequenceBoard.style.display = 'none';
+        }
+
+        document.getElementById('game-screen').classList.add('hidden');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        gameOverScreen.classList.remove('hidden');
+        document.getElementById('final-score').textContent = `Final Score: ${this.score}`;
+        
+        // Update leaderboard with player name
+        const leaderboard = JSON.parse(localStorage.getItem('leaderboard') || '[]');
+        leaderboard.push({
+            name: currentPlayerName,
+            score: this.score
+        });
+        leaderboard.sort((a, b) => b.score - a.score);
+        leaderboard.splice(5); // Keep only top 5
+        localStorage.setItem('leaderboard', JSON.stringify(leaderboard));
+        updateLeaderboard();
+
+        // Parar a música quando o jogo acabar
+        this.audioManager.stopMusic();
+    };
 
     // Initialize
     updateLeaderboard();

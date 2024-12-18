@@ -39,6 +39,7 @@ class Game {
         // Calculate actual collision boundaries to match the frame
         const frameThickness = GAME_CONFIG.FRAME_THICKNESS;
         
+        // Usar as configurações atualizadas da caixa
         this.bounds = {
             min: { 
                 x: GAME_CONFIG.BOX_X + frameThickness, 
@@ -143,6 +144,10 @@ class Game {
 
         // Start game loop
         this.gameLoop();
+
+        this.comboQueue = [];
+        this.isShowingCombo = false;
+        this.comboDelay = 300; // 0.3 seconds delay between combos
     }
 
     createSequenceBoard() {
@@ -306,22 +311,37 @@ class Game {
             // Tocar som de fusão
             this.audioManager.playFusionSound();
             
-            // Add the bonus to the score
-            this.score += ultimateBonus;
+            // Count remaining ingredients for extra bonus (excluding the Ultimate Pizza)
+            const remainingIngredients = this.ingredientManager.ingredients.size - 1;
+            const bonusPerIngredient = 1000; // 1000 points per ingredient destroyed
+            const extraBonus = remainingIngredients * bonusPerIngredient;
+            
+            // Add the total bonus to the score
+            const totalBonus = ultimateBonus + extraBonus;
+            this.score += totalBonus;
+            
+            // Desabilitar spawn de novos ingredientes durante a animação
+            this.canSpawnNew = false;
             
             // Mostrar animação da Ultimate Pizza antes de limpar
-            this.showUltimatePizzaAnimation().then(() => {
+            this.showUltimatePizzaAnimation(remainingIngredients).then(() => {
                 // Clear all ingredients após a animação
                 this.ingredientManager.clearAllIngredients();
                 
-                // Reset combo
+                // Reset combo e estados
                 this.comboMultiplier = 1;
                 this.fusionsInDrop = 0;
                 this.isStabilizing = false;
+                this.canSpawnNew = true; // Reabilitar spawn após limpar tudo
+                
+                // Garantir que as paredes da caixa ainda estão ativas
+                this.walls.forEach(wall => {
+                    Matter.Body.setStatic(wall, true);
+                });
             });
             
-            // Show ultimate bonus effect
-            this.showUltimateBonusEffect(ultimateBonus);
+            // Show ultimate bonus effect with total bonus
+            this.showUltimateBonusEffect(totalBonus, remainingIngredients);
         } else if (fusionResult.fusions > 0) {
             // Tocar som de fusão para cada fusão que ocorrer
             this.audioManager.playFusionSound();
@@ -361,11 +381,14 @@ class Game {
         }
     }
 
-    showUltimateBonusEffect(bonus) {
+    showUltimateBonusEffect(totalBonus, remainingIngredients) {
         // Create and show bonus text element
         const bonusText = document.createElement('div');
         bonusText.className = 'ultimate-bonus';
-        bonusText.textContent = `ULTIMATE PIZZA! +${bonus}`;
+        bonusText.textContent = `ULTIMATE PIZZA! +${totalBonus}`;
+        if (remainingIngredients > 0) {
+            bonusText.textContent += `\n+${remainingIngredients * 1000} BONUS (${remainingIngredients} ingredients)`;
+        }
         document.getElementById('game-screen').appendChild(bonusText);
 
         // Remove the element after animation
@@ -375,13 +398,39 @@ class Game {
     }
 
     showComboEffect(score) {
+        // Add combo to queue
+        this.comboQueue.push({
+            fusionsInDrop: this.fusionsInDrop,
+            comboMultiplier: this.comboMultiplier,
+            score: score
+        });
+
+        // If not currently showing a combo, start processing the queue
+        if (!this.isShowingCombo) {
+            this.processComboQueue();
+        }
+    }
+
+    processComboQueue() {
+        if (this.comboQueue.length === 0) {
+            this.isShowingCombo = false;
+            return;
+        }
+
+        this.isShowingCombo = true;
+        const combo = this.comboQueue.shift();
+        
         const comboText = document.createElement('div');
         comboText.className = 'combo-text';
-        comboText.textContent = `${this.fusionsInDrop} CHAIN! ${this.comboMultiplier}x COMBO! +${score}`;
+        comboText.textContent = `${combo.fusionsInDrop} CHAIN! ${combo.comboMultiplier}x COMBO! +${combo.score}`;
         document.getElementById('game-screen').appendChild(comboText);
 
         setTimeout(() => {
             comboText.remove();
+            // Process next combo after delay
+            setTimeout(() => {
+                this.processComboQueue();
+            }, this.comboDelay);
         }, 1000);
     }
 
@@ -655,7 +704,7 @@ class Game {
     }
 
     // Adicionar novo método para a animação da Ultimate Pizza
-    showUltimatePizzaAnimation() {
+    showUltimatePizzaAnimation(remainingIngredients) {
         return new Promise(resolve => {
             // Encontrar a Ultimate Pizza nos ingredientes
             const ultimatePizza = Array.from(this.ingredientManager.ingredients)
@@ -666,54 +715,101 @@ class Game {
                 return;
             }
 
+            // Garantir que a imagem está carregada
+            const ultimateImage = INGREDIENT_IMAGES[INGREDIENT_TYPES.ULTIMATE_PIZZA];
+            if (!ultimateImage || !ultimateImage.complete) {
+                console.error('Ultimate Pizza image not loaded');
+                resolve();
+                return;
+            }
+
             // Salvar a posição original
             const originalX = ultimatePizza.body.position.x;
             const originalY = ultimatePizza.body.position.y;
+            
+            // Configurar o sprite se não existir
+            if (!ultimatePizza.body.render.sprite) {
+                ultimatePizza.body.render.sprite = {
+                    texture: ultimateImage.src,
+                    xScale: 1,
+                    yScale: 1
+                };
+            }
             const originalScale = ultimatePizza.body.render.sprite.xScale || 1;
 
-            // Desativar física temporariamente
+            // Desativar física temporariamente para todos os ingredientes
             Matter.Sleeping.set(ultimatePizza.body, true);
-
+            
             // Configurar animação
             const startTime = Date.now();
             const duration = 1500; // 1.5 segundos
             const rotationSpeed = Math.PI * 2; // Uma rotação completa por segundo
             const pulseScale = 0.3; // Escala do efeito de pulso
 
+            // Criar efeito de brilho para os outros ingredientes
+            const otherIngredients = Array.from(this.ingredientManager.ingredients)
+                .filter(ingredient => ingredient !== ultimatePizza);
+            
+            // Desativar física dos outros ingredientes também
+            otherIngredients.forEach(ingredient => {
+                Matter.Sleeping.set(ingredient.body, true);
+            });
+
             const animate = () => {
                 const elapsed = Date.now() - startTime;
                 const progress = elapsed / duration;
 
                 if (progress < 1) {
-                    // Rotação
+                    // Rotação e pulso da Ultimate Pizza
                     const rotation = (progress * rotationSpeed * 1.5) % (Math.PI * 2);
                     Matter.Body.setAngle(ultimatePizza.body, rotation);
 
-                    // Efeito de pulso usando a escala do sprite
                     const scale = originalScale * (1 + Math.sin(progress * Math.PI * 4) * pulseScale);
                     if (ultimatePizza.body.render.sprite) {
                         ultimatePizza.body.render.sprite.xScale = scale;
                         ultimatePizza.body.render.sprite.yScale = scale;
                     }
 
-                    // Manter no centro e ajustar o tamanho do corpo físico
-                    const scaledSize = GAME_CONFIG.INGREDIENT_SIZE * scale;
+                    // Manter Ultimate Pizza no centro
                     Matter.Body.scale(ultimatePizza.body, scale / ultimatePizza.body.scale, scale / ultimatePizza.body.scale);
                     Matter.Body.setPosition(ultimatePizza.body, {
                         x: originalX,
                         y: originalY
                     });
 
+                    // Animar outros ingredientes
+                    otherIngredients.forEach((ingredient, index) => {
+                        const angle = (progress * Math.PI * 2) + (index * (Math.PI * 2) / otherIngredients.length);
+                        const radius = 50 * progress; // Aumenta o raio gradualmente
+                        const x = originalX + Math.cos(angle) * radius;
+                        const y = originalY + Math.sin(angle) * radius;
+                        
+                        // Fazer os ingredientes girarem em torno da Ultimate Pizza
+                        Matter.Body.setPosition(ingredient.body, { x, y });
+                        Matter.Body.setAngle(ingredient.body, angle);
+                        
+                        // Adicionar efeito de fade out
+                        if (ingredient.body.render.sprite) {
+                            ingredient.body.render.sprite.opacity = 1 - progress;
+                        }
+                    });
+
                     requestAnimationFrame(animate);
                 } else {
-                    // Restaurar propriedades originais
+                    // Restaurar propriedades originais da Ultimate Pizza
                     if (ultimatePizza.body.render.sprite) {
                         ultimatePizza.body.render.sprite.xScale = originalScale;
                         ultimatePizza.body.render.sprite.yScale = originalScale;
                     }
                     Matter.Body.setAngle(ultimatePizza.body, 0);
                     Matter.Body.scale(ultimatePizza.body, originalScale / ultimatePizza.body.scale, originalScale / ultimatePizza.body.scale);
+                    
+                    // Reativar física para todos os ingredientes antes de resolver
                     Matter.Sleeping.set(ultimatePizza.body, false);
+                    otherIngredients.forEach(ingredient => {
+                        Matter.Sleeping.set(ingredient.body, false);
+                    });
+                    
                     resolve();
                 }
             };

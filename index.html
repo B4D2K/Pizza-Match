@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <button id="music-mute-btn" aria-label="Toggle music"></button>
     <div id="game-container">
         <div id="start-screen" class="screen">
             <h1>Pizza Fusion</h1>
@@ -20,12 +21,23 @@
             </div>
         </div>
         
+        <div id="player-name-screen" class="screen hidden">
+            <h2>Enter Your Name</h2>
+            <div class="input-container">
+                <input type="text" id="player-name" maxlength="15" placeholder="Your name">
+                <div class="button-group">
+                    <button id="confirm-name">OK</button>
+                    <button id="skip-name">Skip</button>
+                </div>
+            </div>
+        </div>
+        
         <div id="game-screen" class="screen hidden">
+            <canvas id="game-canvas"></canvas>
             <div id="game-stats">
                 <div id="score">Score: 0</div>
                 <div id="next-ingredient">Next:</div>
             </div>
-            <canvas id="game-canvas"></canvas>
         </div>
 
         <div id="game-over-screen" class="screen hidden">

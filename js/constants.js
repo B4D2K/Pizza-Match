@@ -9,8 +9,8 @@ const GAME_CONFIG = {
     BOX_WIDTH: 260,      // Adjusted for frame
     BOX_HEIGHT: 400,     // Adjusted for frame
     BOX_X: 30,          // Centered horizontally
-    BOX_Y: 100,         // Adjusted position
-    SPAWN_HEIGHT: 50,
+    BOX_Y: 120,         // Moved 20 pixels down (was 100)
+    SPAWN_HEIGHT: 70,    // Increased by 20 to maintain relative position (was 50)
     
     // Collision boundaries for the frame
     FRAME_THICKNESS: 10, // Thickness of the frame for collisions
