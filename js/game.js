@@ -298,28 +298,7 @@ class Game {
     }
 
     updateScore(fusionResult) {
-        if (fusionResult.fusions === -1) {
-            // Ultimate Pizza formed - calculate bonus
-            const ultimateBonus = SCORES[INGREDIENT_TYPES.ULTIMATE_PIZZA];
-            
-            // Validate the bonus score
-            if (ultimateBonus !== 10000) {
-                console.error('Invalid Ultimate Pizza score');
-                return;
-            }
-            
-            // Add the bonus to the score
-            this.score += ultimateBonus;
-            
-            // Tocar som de fusão
-            this.audioManager.playFusionSound();
-            
-            // Mostrar efeito de combo
-            this.showComboEffect(ultimateBonus);
-            
-            // Update UI
-            this.updateUI();
-        } else if (fusionResult.fusions > 0) {
+        if (fusionResult.fusions > 0) {
             // Tocar som de fusão para cada fusão que ocorrer
             this.audioManager.playFusionSound();
             

@@ -274,7 +274,7 @@ class Ingredient {
     }
 
     canFuse(other) {
-        return this.type === other.type;
+        return this.type === other.type && this.type !== INGREDIENT_TYPES.ULTIMATE_PIZZA;
     }
 
     getNextType() {
@@ -333,7 +333,6 @@ class IngredientManager {
         const fusedPairs = new Set();
         const toRemove = new Set();
         const toAdd = [];
-        let ultimateFormed = false;
         let fusionSourceType = null;  // Track the type of ingredients being fused
 
         collisions.forEach(collision => {
@@ -354,10 +353,8 @@ class IngredientManager {
             
             const nextType = ingredientA.getNextType();
             
-            if (nextType === INGREDIENT_TYPES.ULTIMATE_PIZZA) {
-                ultimateFormed = true;
-                // Don't create the Ultimate Pizza, just mark it for score calculation
-            } else if (!ultimateFormed) {
+            // Create new ingredient if not at max level
+            if (nextType !== ingredientA.type) {
                 const midX = (ingredientA.body.position.x + ingredientB.body.position.x) / 2;
                 const midY = (ingredientA.body.position.y + ingredientB.body.position.y) / 2;
                 
@@ -369,20 +366,13 @@ class IngredientManager {
             }
         });
 
-        // Handle Ultimate Pizza formation
-        if (ultimateFormed) {
-            // Don't remove ingredients here, let the Game class handle it
-            return { fusions: -1, type: INGREDIENT_TYPES.ULTIMATE_PIZZA };
-        }
-
-        // Normal fusion handling
+        // Remove fused ingredients and add new ones
         toRemove.forEach(ingredient => this.removeIngredient(ingredient));
         toAdd.forEach(({type, x, y}) => {
             const newIngredient = new Ingredient(type, x, y, this.world);
             this.ingredients.add(newIngredient);
         });
 
-        // Return the type of ingredients that were fused, not the result type
         return { fusions: toAdd.length, type: fusionSourceType };
     }
 
