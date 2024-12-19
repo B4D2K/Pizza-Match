@@ -73,6 +73,10 @@ class Game {
         // Create sequence board
         this.createSequenceBoard();
         
+        // Initialize stage
+        this.currentStage = 1;
+        this.currentBoxHeight = GAME_CONFIG.STAGES[0].height;
+        
         // Setup Matter.js with more realistic physics
         this.engine = Matter.Engine.create({
             positionIterations: 10,
@@ -163,14 +167,20 @@ class Game {
 
         // Combo system
         this.comboMultiplier = 1;
-        this.maxComboMultiplier = 10;
-        this.fusionsInDrop = 0;
+        this.maxComboMultiplier = 3; // Maximum 300% bonus
+        this.comboTimer = null;
+        this.comboTimeout = 4000; // 4 seconds to maintain combo
+        this.currentComboCount = 0;
+        this.lastFusionTime = 0;
+        this.isComboActive = false;
+
+        // Spawning and stability control
         this.isStabilizing = false;
         this.canSpawnNew = true;
         this.stabilityCheckDelay = 600;
         this.lastStabilityCheck = 0;
         this.stabilityCheckInterval = 50;
-        this.maxStabilizeTime = 2500; // Maximum time to wait for stabilization (2.5 seconds)
+        this.maxStabilizeTime = 2500;
 
         // Next ingredients preview (now storing 3 ingredients)
         this.nextIngredients = [
@@ -244,7 +254,7 @@ class Game {
     }
 
     handleClick() {
-        if (this.isGameOver || this.isStabilizing) return;
+        if (this.isGameOver || !this.canSpawnNew) return;
         
         // Tentar tocar a música no primeiro clique também
         this.audioManager.playMusic();
@@ -256,7 +266,7 @@ class Game {
             this.dropIngredient();
             this.lastDropTime = now;
             this.isStabilizing = true;
-            this.fusionsInDrop = 0;
+            this.canSpawnNew = false;
         }
     }
 
@@ -362,19 +372,45 @@ class Game {
             
             // Create fusion particles
             fusionResult.fusionPositions.forEach(pos => {
-                const color = this.getFallbackColor(fusionResult.type);
-                this.particleSystem.createParticles(pos.x, pos.y, color, 15);
+                // Get ingredient color based on the fusion type
+                let particleColor = this.getParticleColor(fusionResult.type);
+                this.particleSystem.createParticles(pos.x, pos.y, particleColor, 15);
             });
             
-            // Update fusion count and combo
-            this.fusionsInDrop += fusionResult.fusions;
+            // Handle combo system
+            const now = Date.now();
             
-            // Calculate combo based on fusions in this drop
-            if (this.fusionsInDrop >= 2) {
-                this.comboMultiplier = Math.min(this.maxComboMultiplier, this.fusionsInDrop);
+            // Check if this fusion is within the combo window
+            if (now - this.lastFusionTime <= this.comboTimeout && this.isComboActive) {
+                // Continue combo
+                this.currentComboCount++;
             } else {
+                // Start new combo
+                this.currentComboCount = 1;
                 this.comboMultiplier = 1;
             }
+            
+            // Update last fusion time
+            this.lastFusionTime = now;
+            
+            // Clear existing combo timer
+            if (this.comboTimer) {
+                clearTimeout(this.comboTimer);
+            }
+            
+            // Set new combo timer
+            this.comboTimer = setTimeout(() => {
+                this.endCombo();
+            }, this.comboTimeout);
+            
+            // Calculate progressive multiplier
+            // Each consecutive fusion adds 30% more to the multiplier
+            this.comboMultiplier = Math.min(
+                1 + (this.currentComboCount * 0.3),
+                this.maxComboMultiplier
+            );
+            
+            this.isComboActive = true;
             
             // Get and validate the score for the fusion result type
             const baseScore = SCORES[fusionResult.type];
@@ -385,27 +421,45 @@ class Game {
                 return;
             }
             
-            // Calculate combo score
-            const comboScore = baseScore * this.comboMultiplier;
+            // Calculate combo score with progressive multiplier
+            const comboScore = Math.floor(baseScore * this.comboMultiplier);
             
             // Add to total score
             this.score += comboScore;
             
-            // Show combo effect if active
+            // Check for stage upgrade after score update
+            this.checkForPhaseUpgrade();
+            
+            // Show combo effect
             if (this.comboMultiplier > 1) {
                 this.showComboEffect(comboScore);
             }
             
             // Log score for debugging
-            console.log(`Fusion: ${INGREDIENT_NAMES[fusionResult.type]}, Score: ${baseScore}, Combo: ${this.comboMultiplier}x, Total: ${comboScore}`);
+            console.log(
+                `Fusion: ${INGREDIENT_NAMES[fusionResult.type]}, ` +
+                `Base Score: ${baseScore}, ` +
+                `Combo: ${this.comboMultiplier.toFixed(2)}x (${this.currentComboCount} chain), ` +
+                `Total: ${comboScore}`
+            );
+        }
+    }
+
+    endCombo() {
+        this.isComboActive = false;
+        this.currentComboCount = 0;
+        this.comboMultiplier = 1;
+        if (this.comboTimer) {
+            clearTimeout(this.comboTimer);
+            this.comboTimer = null;
         }
     }
 
     showComboEffect(score) {
         // Add combo to queue
         this.comboQueue.push({
-            fusionsInDrop: this.fusionsInDrop,
-            comboMultiplier: this.comboMultiplier,
+            comboCount: this.currentComboCount,
+            multiplier: this.comboMultiplier,
             score: score
         });
 
@@ -426,8 +480,21 @@ class Game {
         
         const comboText = document.createElement('div');
         comboText.className = 'combo-text';
-        comboText.textContent = `${combo.fusionsInDrop} CHAIN! ${combo.comboMultiplier}x COMBO! +${combo.score}`;
+        
+        // Format the multiplier to show percentage increase
+        const multiplierPercent = Math.round((combo.multiplier - 1) * 100);
+        comboText.textContent = 
+            `${combo.comboCount} CHAIN! +${multiplierPercent}% BONUS! +${combo.score}`;
+        
+        // Add a progress bar for the combo timer
+        const progressBar = document.createElement('div');
+        progressBar.className = 'combo-timer';
+        comboText.appendChild(progressBar);
+        
         document.getElementById('game-screen').appendChild(comboText);
+
+        // Animate the progress bar
+        progressBar.style.animation = `comboTimer ${this.comboTimeout}ms linear`;
 
         setTimeout(() => {
             comboText.remove();
@@ -436,6 +503,10 @@ class Game {
                 this.processComboQueue();
             }, this.comboDelay);
         }, 1000);
+    }
+
+    getParticleColor(type) {
+        // ... existing particle color logic ...
     }
 
     checkGameOver() {
@@ -596,11 +667,6 @@ class Game {
                     if (timeSinceLastDrop >= this.stabilityCheckDelay) {
                         this.isStabilizing = false;
                         this.canSpawnNew = true;
-                        
-                        // Reset combo if no fusions occurred
-                        if (this.fusionsInDrop === 0) {
-                            this.comboMultiplier = 1;
-                        }
                     }
                 }
             }
@@ -611,7 +677,9 @@ class Game {
             // Draw game elements
             this.drawBox();
             this.ingredientManager.draw(this.ctx);
-            this.drawNextIngredient();
+            if (this.canSpawnNew) {
+                this.drawNextIngredient();
+            }
             
             // Update and draw particles
             this.particleSystem.update();
@@ -698,7 +766,6 @@ class Game {
             this.lastDropTime = now;
             this.isStabilizing = true;
             this.canSpawnNew = false;
-            this.fusionsInDrop = 0;
         }
         
         // Reset drag position
@@ -709,5 +776,126 @@ class Game {
     startGame() {
         // Tentar tocar a música
         this.audioManager.playMusic();
+    }
+
+    checkForPhaseUpgrade() {
+        const stages = GAME_CONFIG.STAGES;
+        let newStage = this.currentStage;
+
+        // Find the appropriate stage based on current score
+        for (let i = stages.length - 1; i >= 0; i--) {
+            if (this.score >= stages[i].points && i + 1 > this.currentStage) {
+                newStage = i + 1;
+                break;
+            }
+        }
+
+        // If stage has changed
+        if (newStage > this.currentStage) {
+            const oldHeight = this.currentBoxHeight;
+            this.currentStage = newStage;
+            this.currentBoxHeight = stages[newStage - 1].height;
+
+            // Update box configuration
+            GAME_CONFIG.BOX_HEIGHT = this.currentBoxHeight;
+
+            // Remove half of the lower tier ingredients
+            this.removeLowerTierIngredients();
+
+            // Recreate walls with new dimensions
+            this.updateWalls();
+
+            // Show stage upgrade message
+            this.showStageUpgrade(newStage);
+
+            // Log the stage change
+            console.log(`Stage Up! Now at Stage ${this.currentStage}`);
+            console.log(`Box height changed from ${oldHeight} to ${this.currentBoxHeight}`);
+        }
+    }
+
+    removeLowerTierIngredients() {
+        // Get all ingredients sorted by type (lower tier first)
+        const sortedIngredients = Array.from(this.ingredientManager.ingredients)
+            .sort((a, b) => a.type - b.type);
+
+        // Calculate how many lower tier ingredients to remove (half of them)
+        const lowerTierCount = Math.floor(sortedIngredients.length / 2);
+        
+        // Get the ingredients to remove (first half of sorted array)
+        const ingredientsToRemove = sortedIngredients.slice(0, lowerTierCount);
+        
+        // Remove the selected ingredients
+        ingredientsToRemove.forEach(ingredient => {
+            Matter.World.remove(this.world, ingredient.body);
+            this.ingredientManager.ingredients.delete(ingredient);
+        });
+        
+        // Log the removal
+        console.log(`Removed ${ingredientsToRemove.length} lower tier ingredients during phase change`);
+    }
+
+    updateWalls() {
+        // Remove existing walls
+        this.walls.forEach(wall => Matter.World.remove(this.world, wall));
+
+        const frameThickness = GAME_CONFIG.FRAME_THICKNESS;
+        const wallOptions = {
+            isStatic: true,
+            friction: 0.3,
+            restitution: 0.2,
+            density: 1,
+            slop: 0.05,
+            chamfer: { radius: 2 }
+        };
+
+        // Create new walls with updated dimensions
+        this.walls = [
+            // Bottom wall
+            Matter.Bodies.rectangle(
+                GAME_CONFIG.BOX_X + GAME_CONFIG.BOX_WIDTH/2,
+                GAME_CONFIG.BOX_Y + GAME_CONFIG.BOX_HEIGHT,
+                GAME_CONFIG.BOX_WIDTH - frameThickness * 2,
+                frameThickness,
+                wallOptions
+            ),
+            // Left wall
+            Matter.Bodies.rectangle(
+                GAME_CONFIG.BOX_X,
+                GAME_CONFIG.BOX_Y + GAME_CONFIG.BOX_HEIGHT/2,
+                frameThickness,
+                GAME_CONFIG.BOX_HEIGHT,
+                wallOptions
+            ),
+            // Right wall
+            Matter.Bodies.rectangle(
+                GAME_CONFIG.BOX_X + GAME_CONFIG.BOX_WIDTH,
+                GAME_CONFIG.BOX_Y + GAME_CONFIG.BOX_HEIGHT/2,
+                frameThickness,
+                GAME_CONFIG.BOX_HEIGHT,
+                wallOptions
+            )
+        ];
+
+        // Add collision filtering to walls
+        this.walls.forEach(wall => {
+            wall.collisionFilter = {
+                category: 0x0002,
+                mask: 0xFFFF
+            };
+            Matter.World.add(this.world, wall);
+        });
+    }
+
+    showStageUpgrade(stage) {
+        const stageText = document.createElement('div');
+        stageText.className = 'stage-text';
+        stageText.textContent = `Stage ${stage}!`;
+        document.getElementById('game-screen').appendChild(stageText);
+
+        // Remove the element after animation
+        setTimeout(() => {
+            stageText.remove();
+        }, 2000);
     }
 } 

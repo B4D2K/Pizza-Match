@@ -2,26 +2,38 @@ document.addEventListener('DOMContentLoaded', () => {
     let game = null;
     let currentPlayerName = '';
 
-    function updateLeaderboard() {
-        const leaderboard = JSON.parse(localStorage.getItem('leaderboard') || '[]');
-        const scoresList = document.getElementById('scores-list');
-        scoresList.innerHTML = leaderboard
-            .map((entry, index) => `<div>${index + 1}. ${entry.name || 'Anonymous'} - ${entry.score}</div>`)
-            .join('');
-    }
+    // Unified leaderboard handling
+    const LeaderboardManager = {
+        getScores() {
+            return JSON.parse(localStorage.getItem('leaderboard') || '[]');
+        },
+        
+        addScore(name, score) {
+            const leaderboard = this.getScores();
+            leaderboard.push({ name, score });
+            leaderboard.sort((a, b) => b.score - a.score);
+            leaderboard.splice(5); // Keep top 5 scores
+            localStorage.setItem('leaderboard', JSON.stringify(leaderboard));
+        },
+        
+        updateDisplay() {
+            const scoresList = document.getElementById('scores-list');
+            const scores = this.getScores();
+            scoresList.innerHTML = scores
+                .map((entry, index) => `<div>${index + 1}. ${entry.name || 'Anonymous'} - ${entry.score}</div>`)
+                .join('');
+        }
+    };
 
     function showScreen(screenId) {
-        // Remove all screen classes from body
         document.body.classList.remove('start-screen', 'game-screen');
         
-        // Add appropriate class based on screen
         if (screenId === 'start-screen') {
             document.body.classList.add('start-screen');
         } else if (screenId === 'game-screen') {
             document.body.classList.add('game-screen');
         }
 
-        // Show the correct screen
         document.querySelectorAll('.screen').forEach(screen => {
             screen.classList.add('hidden');
         });
@@ -30,14 +42,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function startGame() {
         showScreen('game-screen');
-        // Preload images before starting the game
         try {
             await preloadImages();
             game = new Game();
             game.startGame();
         } catch (error) {
             console.error('Error loading images:', error);
-            // Start the game anyway
+            alert('Some game assets failed to load. The game may not work correctly.');
             game = new Game();
         }
     }
@@ -64,7 +75,6 @@ document.addEventListener('DOMContentLoaded', () => {
         startGame();
     });
 
-    // Handle Enter key in name input
     document.getElementById('player-name').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             handleNameConfirmation();
@@ -78,40 +88,49 @@ document.addEventListener('DOMContentLoaded', () => {
             game = new Game();
         } catch (error) {
             console.error('Error loading images:', error);
-            // Start the game anyway
+            alert('Some game assets failed to load. The game may not work correctly.');
             game = new Game();
         }
     });
 
-    // Adicionar evento de clique ao botão de música
     document.getElementById('music-mute-btn').addEventListener('click', () => {
         if (game && game.audioManager) {
             game.audioManager.toggleMute();
         }
     });
 
-    // Listener para redimensionamento do jogo
+    // Improved resize handling
+    let resizeTimeout;
     window.addEventListener('gameResized', (event) => {
         if (game) {
-            // Salvar estado atual
-            const currentScore = game.score;
-            const currentIngredients = game.nextIngredients;
-            const currentCombo = game.comboMultiplier;
-            
-            // Recriar o jogo com as novas dimensões
-            game = new Game();
-            
-            // Restaurar estado
-            game.score = currentScore;
-            game.nextIngredients = currentIngredients;
-            game.comboMultiplier = currentCombo;
-            game.updateNextIngredientDisplay();
+            // Debounce resize handling
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                // Save current game state
+                const gameState = {
+                    score: game.score,
+                    nextIngredients: game.nextIngredients,
+                    comboMultiplier: game.comboMultiplier,
+                    audioMuted: game.audioManager.isMuted
+                };
+                
+                // Recreate game with new dimensions
+                game = new Game();
+                
+                // Restore state
+                game.score = gameState.score;
+                game.nextIngredients = gameState.nextIngredients;
+                game.comboMultiplier = gameState.comboMultiplier;
+                if (gameState.audioMuted) {
+                    game.audioManager.toggleMute();
+                }
+                game.updateNextIngredientDisplay();
+            }, 250); // Wait for resize to finish
         }
     });
 
-    // Modificar o Game Over para incluir o nome do jogador
+    // Modify Game Over handling
     Game.prototype.handleGameOver = function() {
-        // Hide sequence board
         const sequenceBoard = document.getElementById('sequence-board');
         if (sequenceBoard) {
             sequenceBoard.style.display = 'none';
@@ -122,22 +141,14 @@ document.addEventListener('DOMContentLoaded', () => {
         gameOverScreen.classList.remove('hidden');
         document.getElementById('final-score').textContent = `Final Score: ${this.score}`;
         
-        // Update leaderboard with player name
-        const leaderboard = JSON.parse(localStorage.getItem('leaderboard') || '[]');
-        leaderboard.push({
-            name: currentPlayerName,
-            score: this.score
-        });
-        leaderboard.sort((a, b) => b.score - a.score);
-        leaderboard.splice(3); // Keep only top 3
-        localStorage.setItem('leaderboard', JSON.stringify(leaderboard));
-        updateLeaderboard();
+        // Update leaderboard with unified handling
+        LeaderboardManager.addScore(currentPlayerName, this.score);
+        LeaderboardManager.updateDisplay();
 
-        // Parar a música quando o jogo acabar
         this.audioManager.stopMusic();
     };
 
     // Initialize
-    updateLeaderboard();
+    LeaderboardManager.updateDisplay();
     showScreen('start-screen');
 }); 

@@ -21,7 +21,16 @@ const GAME_CONFIG = {
     HUD_SPACING: 20,
     
     // Bottom margin for the box
-    BOTTOM_MARGIN: 20
+    BOTTOM_MARGIN: 20,
+
+    // Stage configuration
+    STAGES: [
+        { points: 0, height: 400 },          // Stage 1 (initial)
+        { points: 10000, height: 350 },      // Stage 2
+        { points: 30000, height: 300 },      // Stage 3
+        { points: 80000, height: 250 },      // Stage 4
+        { points: 120000, height: 200 }      // Stage 5
+    ]
 };
 
 // Make GAME_CONFIG globally available

@@ -70,44 +70,78 @@ const SCORES = new Proxy(FUSION_SCORES, {
 const INGREDIENT_IMAGES = {};
 
 function preloadImages() {
-    return new Promise((resolve) => {
-        let loadedImages = 0;
-        const totalImages = INGREDIENT_NAMES.length;
-        let hasErrors = false;
-
-        function onLoad() {
-            loadedImages++;
-            if (loadedImages === totalImages) {
-                console.log('All images loaded' + (hasErrors ? ' (with some errors)' : ''));
-                resolve();
-            }
-        }
-
-        function onError(e) {
-            console.error('Error loading image:', e.target.src);
-            hasErrors = true;
-            onLoad(); // Count error as loaded to avoid blocking the game
-        }
-
-        INGREDIENT_NAMES.forEach((name, index) => {
-            const img = new Image();
-            img.onload = onLoad;
-            img.onerror = onError;
-            
-            // Use the correct path to the ingredients folder
-            img.src = `Assets/Images/Ingredients/${name}.png`;
-            
-            INGREDIENT_IMAGES[index] = img;
+    return new Promise((resolve, reject) => {
+        const loadPromises = INGREDIENT_NAMES.map((name, index) => {
+            return new Promise((resolveImage, rejectImage) => {
+                const img = new Image();
+                
+                img.onload = () => {
+                    INGREDIENT_IMAGES[index] = img;
+                    resolveImage();
+                };
+                
+                img.onerror = (e) => {
+                    console.error(`Error loading image for ${name}:`, e);
+                    // Create a fallback colored circle canvas
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 64;
+                    canvas.height = 64;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Draw fallback circle
+                    ctx.beginPath();
+                    ctx.arc(32, 32, 30, 0, Math.PI * 2);
+                    ctx.fillStyle = getFallbackColor(index);
+                    ctx.fill();
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    // Create an image from the canvas
+                    const fallbackImg = new Image();
+                    fallbackImg.src = canvas.toDataURL();
+                    INGREDIENT_IMAGES[index] = fallbackImg;
+                    resolveImage(); // Resolve with fallback
+                };
+                
+                // Use the correct path to the ingredients folder
+                img.src = `Assets/Images/Ingredients/${name}.png`;
+            });
         });
 
-        // Set a timeout to resolve anyway after 5 seconds
-        setTimeout(() => {
-            if (loadedImages < totalImages) {
-                console.warn('Some images failed to load within timeout');
+        // Wait for all images to load or fail with fallbacks
+        Promise.all(loadPromises)
+            .then(() => {
+                console.log('All images loaded or fallbacks created');
                 resolve();
-            }
-        }, 5000);
+            })
+            .catch(error => {
+                console.error('Critical error in image loading:', error);
+                reject(error);
+            });
+
+        // Set a timeout for the entire loading process
+        setTimeout(() => {
+            reject(new Error('Image loading timed out'));
+        }, 10000); // 10 second timeout
     });
+}
+
+// Helper function for fallback colors
+function getFallbackColor(type) {
+    const colors = [
+        '#2D5A27', // Olive
+        '#8B7355', // Mushroom
+        '#E3D7D7', // Onion
+        '#C41E3A', // Pepperoni
+        '#FF6347', // Tomato
+        '#FFF5EE', // Muzzarela
+        '#FAFAD2', // Cheddar
+        '#FFD700', // Small Pizza
+        '#FFA500', // Medium Pizza
+        '#FF4500'  // Ultimate Pizza
+    ];
+    return colors[type] || '#CCC';
 }
 
 // Make these available globally
