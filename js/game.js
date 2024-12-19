@@ -1,3 +1,58 @@
+class ParticleSystem {
+    constructor() {
+        this.particles = [];
+    }
+
+    createParticles(x, y, color, amount = 10) {
+        for (let i = 0; i < amount; i++) {
+            const angle = (Math.PI * 2 / amount) * i;
+            const speed = 2 + Math.random() * 2;
+            this.particles.push({
+                x: x,
+                y: y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: 1.0,
+                color: color,
+                size: 4 + Math.random() * 4
+            });
+        }
+    }
+
+    update() {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const particle = this.particles[i];
+            
+            // Update position
+            particle.x += particle.vx;
+            particle.y += particle.vy;
+            
+            // Add gravity effect
+            particle.vy += 0.1;
+            
+            // Fade out
+            particle.life -= 0.02;
+            
+            // Remove dead particles
+            if (particle.life <= 0) {
+                this.particles.splice(i, 1);
+            }
+        }
+    }
+
+    draw(ctx) {
+        ctx.save();
+        for (const particle of this.particles) {
+            ctx.globalAlpha = particle.life;
+            ctx.fillStyle = particle.color;
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+}
+
 class Game {
     constructor() {
         // Inicializar o gerenciador de áudio primeiro
@@ -7,6 +62,9 @@ class Game {
         this.ctx = this.canvas.getContext('2d');
         this.canvas.width = GAME_CONFIG.CANVAS_WIDTH;
         this.canvas.height = GAME_CONFIG.CANVAS_HEIGHT;
+        
+        // Initialize particle system
+        this.particleSystem = new ParticleSystem();
         
         // Load box frame image
         this.boxFrameImage = new Image();
@@ -302,6 +360,12 @@ class Game {
             // Tocar som de fusão para cada fusão que ocorrer
             this.audioManager.playFusionSound();
             
+            // Create fusion particles
+            fusionResult.fusionPositions.forEach(pos => {
+                const color = this.getFallbackColor(fusionResult.type);
+                this.particleSystem.createParticles(pos.x, pos.y, color, 15);
+            });
+            
             // Update fusion count and combo
             this.fusionsInDrop += fusionResult.fusions;
             
@@ -548,6 +612,10 @@ class Game {
             this.drawBox();
             this.ingredientManager.draw(this.ctx);
             this.drawNextIngredient();
+            
+            // Update and draw particles
+            this.particleSystem.update();
+            this.particleSystem.draw(this.ctx);
             
             // Check for fusions
             const fusionResult = this.ingredientManager.checkFusions();

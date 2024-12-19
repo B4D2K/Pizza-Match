@@ -320,7 +320,7 @@ class IngredientManager {
     }
 
     checkFusions() {
-        if (this.ingredients.size < 2) return { fusions: 0, type: null };
+        if (this.ingredients.size < 2) return { fusions: 0, type: null, fusionPositions: [] };
 
         const bodies = Array.from(this.ingredients).map(i => i.body);
         
@@ -333,6 +333,7 @@ class IngredientManager {
         const fusedPairs = new Set();
         const toRemove = new Set();
         const toAdd = [];
+        const fusionPositions = [];
         let fusionSourceType = null;  // Track the type of ingredients being fused
 
         collisions.forEach(collision => {
@@ -353,11 +354,15 @@ class IngredientManager {
             
             const nextType = ingredientA.getNextType();
             
+            // Calculate fusion position (midpoint of the two ingredients)
+            const midX = (ingredientA.body.position.x + ingredientB.body.position.x) / 2;
+            const midY = (ingredientA.body.position.y + ingredientB.body.position.y) / 2;
+            
+            // Store fusion position
+            fusionPositions.push({ x: midX, y: midY });
+            
             // Create new ingredient if not at max level
             if (nextType !== ingredientA.type) {
-                const midX = (ingredientA.body.position.x + ingredientB.body.position.x) / 2;
-                const midY = (ingredientA.body.position.y + ingredientB.body.position.y) / 2;
-                
                 toAdd.push({
                     type: nextType,
                     x: midX,
@@ -373,7 +378,11 @@ class IngredientManager {
             this.ingredients.add(newIngredient);
         });
 
-        return { fusions: toAdd.length, type: fusionSourceType };
+        return { 
+            fusions: toAdd.length, 
+            type: fusionSourceType,
+            fusionPositions: fusionPositions
+        };
     }
 
     clearAllIngredients() {
