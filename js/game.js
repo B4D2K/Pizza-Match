@@ -506,7 +506,20 @@ class Game {
     }
 
     getParticleColor(type) {
-        // ... existing particle color logic ...
+        // Cores vibrantes e brilhantes para as partículas de fusão
+        const colors = [
+            '#4CAF50',  // Olive - Verde mais vibrante
+            '#A1887F',  // Mushroom - Marrom mais claro e vibrante
+            '#FFEBEE',  // Onion - Rosa bem claro e brilhante
+            '#FF1744',  // Pepperoni - Vermelho vibrante
+            '#FF5722',  // Tomato - Laranja avermelhado vibrante
+            '#FAFAFA',  // Muzzarela - Branco brilhante
+            '#FFF176',  // Cheddar - Amarelo vibrante
+            '#FFD700',  // Small Pizza - Dourado brilhante
+            '#FFA000',  // Medium Pizza - Laranja dourado
+            '#FF3D00'   // Ultimate Pizza - Laranja avermelhado intenso
+        ];
+        return colors[type] || '#FFF';
     }
 
     checkGameOver() {
