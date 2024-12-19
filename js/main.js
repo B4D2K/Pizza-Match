@@ -83,6 +83,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Adicionar evento de clique ao botão de música
+    document.getElementById('music-mute-btn').addEventListener('click', () => {
+        if (game && game.audioManager) {
+            game.audioManager.toggleMute();
+        }
+    });
+
     // Listener para redimensionamento do jogo
     window.addEventListener('gameResized', (event) => {
         if (game) {
@@ -122,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
             score: this.score
         });
         leaderboard.sort((a, b) => b.score - a.score);
-        leaderboard.splice(5); // Keep only top 5
+        leaderboard.splice(3); // Keep only top 3
         localStorage.setItem('leaderboard', JSON.stringify(leaderboard));
         updateLeaderboard();
 

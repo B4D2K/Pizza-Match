@@ -44,7 +44,8 @@ body::before {
 
 /* Different opacity for start screen */
 body.start-screen::before {
-    opacity: 0.5;
+    opacity: 1;
+    background-image: url('Assets/Images/BG_Start_Screen_2.png');
 }
 
 /* Normal opacity for game screen */
@@ -68,10 +69,8 @@ body.game-screen::before {
 .screen {
     width: 100%;
     max-width: 320px;
-    background: white;
     padding: 15px;
     border-radius: 10px;
-    box-shadow: 0 0 20px rgba(0,0,0,0.1);
     text-align: center;
     transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     transform-origin: center;
@@ -616,14 +615,18 @@ h2 {
 
 /* Player Name Screen Styles */
 #player-name-screen {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(5px);
+    background: url('Assets/Images/BG_Board_Display.png');
+    background-size: 100% 100%;
+    background-position: center;
+    background-repeat: no-repeat;
     padding: 30px;
 }
 
 #player-name-screen h2 {
-    color: #333;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
     margin-bottom: 20px;
+    margin-top: 10px;
     font-size: 1.5em;
 }
 
@@ -631,7 +634,8 @@ h2 {
     display: flex;
     flex-direction: column;
     gap: 15px;
-    width: 100%;
+    width: calc(100% - 12px);
+    margin: 0 auto;
 }
 
 #player-name {
@@ -665,4 +669,104 @@ h2 {
 
 #skip-name:hover {
     background: #777;
+}
+
+#start-button {
+    background: url('Assets/Images/HUD/Start_Button.png');
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    width: 150px;
+    height: 60px;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    transition: transform 0.3s ease;
+    margin-top: 40px;
+}
+
+#start-button:hover {
+    background: url('Assets/Images/HUD/Start_Button.png');
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    transform: scale(1.1);
+    box-shadow: none;
+}
+
+#start-button:active {
+    transform: scale(0.95);
+}
+
+#start-screen {
+    background: url('Assets/Images/BG_Board_Display.png');
+    background-size: 100% 100%;
+    background-position: center;
+    background-repeat: no-repeat;
+    box-shadow: none;
+    padding: 30px 15px;
+}
+
+#start-screen #leaderboard {
+    background: transparent;
+    margin-top: -10px;
+}
+
+#start-screen h2 {
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+#scores-list {
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+}
+
+#game-over-screen {
+    background: url('Assets/Images/BG_Board_Display.png');
+    background-size: 100% 100%;
+    background-position: center;
+    background-repeat: no-repeat;
+    padding: 30px;
+}
+
+#game-over-screen h2 {
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    margin-bottom: 20px;
+    font-size: 1.5em;
+}
+
+#final-score {
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    margin-bottom: 20px;
+    font-size: 1.2em;
+}
+
+#restart-button {
+    background: url('Assets/Images/HUD/Start_Button.png');
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    width: 150px;
+    height: 60px;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    transition: transform 0.3s ease;
+    color: transparent;
+}
+
+#restart-button:hover {
+    background: url('Assets/Images/HUD/Start_Button.png');
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    transform: scale(1.1);
+    box-shadow: none;
+}
+
+#restart-button:active {
+    transform: scale(0.95);
 } 

@@ -4,10 +4,11 @@ class AudioManager {
         this.musicTheme.loop = true;
         this.musicTheme.volume = 0.5;
         this.isPlaying = false;
+        this.isMuted = false;
         
         // Som de fusão
         this.fusionSound = new Audio('./Assets/Sounds/SFX/fusion_sound.mp3');
-        this.fusionSound.volume = 0.7;
+        this.fusionSound.volume = 1.0;
         
         // Som de toque no ingrediente
         this.touchSound = new Audio('./Assets/Sounds/SFX/touch_ingredient.mp3');
@@ -23,7 +24,7 @@ class AudioManager {
     }
 
     playMusic() {
-        if (this.isPlaying) return;
+        if (this.isPlaying || this.isMuted) return;
         
         const playPromise = this.musicTheme.play();
         
@@ -43,6 +44,20 @@ class AudioManager {
         this.musicTheme.pause();
         this.musicTheme.currentTime = 0;
         this.isPlaying = false;
+    }
+
+    toggleMute() {
+        this.isMuted = !this.isMuted;
+        if (this.isMuted) {
+            this.stopMusic();
+        } else {
+            this.playMusic();
+        }
+        // Atualizar o botão de música
+        const musicBtn = document.getElementById('music-mute-btn');
+        if (musicBtn) {
+            musicBtn.classList.toggle('muted', this.isMuted);
+        }
     }
 
     setVolume(volume) {

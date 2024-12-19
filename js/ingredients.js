@@ -150,22 +150,28 @@ class Ingredient {
         // Create the body with more natural physics properties
         const radius = this.size / 2;
         this.body = Matter.Bodies.circle(x, y, radius, {
-            restitution: 0.2,      // Reduced bounce
-            friction: 0.8,         // Increased friction
-            density: 0.002,        // Slightly increased density for better weight feel
-            frictionAir: 0.002,    // Increased air resistance
-            frictionStatic: 0.8,   // Increased static friction
-            slop: 0.01,           // Reduced slop for tighter stacking
-            chamfer: { radius: 1 }, // Slightly rounded edges
+            restitution: 0.3,      // Slightly increased bounce for better interaction
+            friction: 0.9,         // Increased friction to prevent sliding
+            density: 0.001,        // Reduced density for lighter feel
+            frictionAir: 0.005,    // Increased air resistance to slow rotation
+            frictionStatic: 1.0,   // Maximum static friction to prevent rolling
+            slop: 0.05,           // Increased slop for more forgiving collisions
+            chamfer: { radius: 2 }, // Slightly rounded edges
             collisionFilter: {
                 category: 0x0001,
                 mask: 0xFFFF
             }
         });
 
-        // Add angular damping to reduce spinning
-        this.body.angularDamping = 0.2;
-        this.body.torque = 0;      // Reset initial torque
+        // Add angular damping and limit angular velocity
+        this.body.angularDamping = 0.3;  // Increased angular damping
+        this.body.angularSpeed = 0.15;   // Limit maximum angular speed
+        this.body.torque = 0;           // Reset initial torque
+        
+        // Add custom properties for rotation control
+        this.body.plugin = {
+            angularVelocityLimit: Math.PI / 4  // Limit to 45 degrees per frame
+        };
         
         // Ensure proper collision detection
         this.body.ingredient = this;
@@ -234,23 +240,35 @@ class Ingredient {
         const velocity = this.body.velocity;
         const angularVelocity = this.body.angularVelocity;
         
-        // More lenient stability check
-        return Math.abs(velocity.y) < 0.2 && 
-               Math.abs(velocity.x) < 0.2 && 
-               Math.abs(angularVelocity) < 0.02;
+        // More strict stability check
+        return Math.abs(velocity.y) < 0.1 && 
+               Math.abs(velocity.x) < 0.1 && 
+               Math.abs(angularVelocity) < 0.01;
     }
 
     forceFall() {
         const now = Date.now();
-        if (now - this.lastFallCheck > 300) { // Reduced check interval
+        if (now - this.lastFallCheck > 300) { // Check interval
             this.lastFallCheck = now;
             
             if (!this.checkStability()) {
-                // Apply a gentler force
-                Matter.Body.setVelocity(this.body, {
-                    x: this.body.velocity.x * 0.95, // Dampen horizontal movement
-                    y: Math.max(this.body.velocity.y, 1.5)
-                });
+                // Apply a gentler force and limit rotation
+                const currentVel = this.body.velocity;
+                const targetVel = {
+                    x: currentVel.x * 0.95, // Dampen horizontal movement
+                    y: Math.max(currentVel.y, 1.5)  // Ensure downward movement
+                };
+                
+                Matter.Body.setVelocity(this.body, targetVel);
+                
+                // Limit angular velocity if it's too high
+                if (Math.abs(this.body.angularVelocity) > this.body.plugin.angularVelocityLimit) {
+                    const direction = this.body.angularVelocity > 0 ? 1 : -1;
+                    Matter.Body.setAngularVelocity(
+                        this.body,
+                        direction * this.body.plugin.angularVelocityLimit
+                    );
+                }
             }
         }
     }
