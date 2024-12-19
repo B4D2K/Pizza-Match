@@ -274,7 +274,7 @@ class Ingredient {
     }
 
     canFuse(other) {
-        return this.type === other.type && this.type !== INGREDIENT_TYPES.ULTIMATE_PIZZA;
+        return this.type === other.type;
     }
 
     getNextType() {

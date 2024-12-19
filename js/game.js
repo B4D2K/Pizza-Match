@@ -308,64 +308,17 @@ class Game {
                 return;
             }
             
-            // Count remaining ingredients for extra bonus (excluding the Ultimate Pizza)
-            const remainingIngredients = this.ingredientManager.ingredients.size - 1;
-            const bonusPerIngredient = 1000; // 1000 points per ingredient destroyed
-            const extraBonus = remainingIngredients * bonusPerIngredient;
+            // Add the bonus to the score
+            this.score += ultimateBonus;
             
-            // Add the total bonus to the score
-            const totalBonus = ultimateBonus + extraBonus;
-            
-            // Disable physics and spawn during display
-            this.canSpawnNew = false;
-            this.isStabilizing = true;
-            
-            // Stop the physics engine and clear any pending forces
-            Matter.Runner.stop(this.engine);
-            Matter.Engine.clear(this.engine);
-            
-            // Get the Ultimate Pizza image
-            const ultimateImage = INGREDIENT_IMAGES[INGREDIENT_TYPES.ULTIMATE_PIZZA];
-            
-            // Show static display and bonus
-            this.showStaticUltimatePizza(totalBonus, remainingIngredients);
-            this.showUltimateBonusEffect(totalBonus, remainingIngredients);
-            
-            // Play fusion sound
+            // Tocar som de fusão
             this.audioManager.playFusionSound();
             
-            // Update score and UI
-            this.score += totalBonus;
-            this.updateUI();
+            // Mostrar efeito de combo
+            this.showComboEffect(ultimateBonus);
             
-            // Clean up and reset after animation
-            setTimeout(() => {
-                // Clear all ingredients and reset physics
-                this.ingredientManager.clearAllIngredients();
-                Matter.Engine.clear(this.engine);
-                
-                // Reset game state
-                this.comboMultiplier = 1;
-                this.fusionsInDrop = 0;
-                this.isStabilizing = false;
-                
-                // Reset wall physics
-                this.walls.forEach(wall => {
-                    Matter.Body.setStatic(wall, true);
-                    Matter.Body.setVelocity(wall, { x: 0, y: 0 });
-                    Matter.Body.setAngularVelocity(wall, 0);
-                    Matter.Sleeping.set(wall, false);
-                });
-                
-                // Restart physics engine
-                Matter.Runner.start(this.engine);
-                
-                // Allow new spawns after physics is stable
-                setTimeout(() => {
-                    this.canSpawnNew = true;
-                    this.lastDropTime = Date.now();
-                }, 100);
-            }, 1500);
+            // Update UI
+            this.updateUI();
         } else if (fusionResult.fusions > 0) {
             // Tocar som de fusão para cada fusão que ocorrer
             this.audioManager.playFusionSound();
@@ -403,74 +356,6 @@ class Game {
             // Log score for debugging
             console.log(`Fusion: ${INGREDIENT_NAMES[fusionResult.type]}, Score: ${baseScore}, Combo: ${this.comboMultiplier}x, Total: ${comboScore}`);
         }
-    }
-
-    showStaticUltimatePizza(totalBonus, remainingIngredients) {
-        const canvas = document.getElementById('game-canvas');
-        const ctx = canvas.getContext('2d');
-        
-        // Clear the canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Draw the box frame
-        this.drawBox();
-        
-        // Get the Ultimate Pizza image
-        const ultimateImage = INGREDIENT_IMAGES[INGREDIENT_TYPES.ULTIMATE_PIZZA];
-        
-        // Calculate center position
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-        
-        // Draw the Ultimate Pizza image centered
-        if (ultimateImage && ultimateImage.complete && ultimateImage.naturalHeight !== 0) {
-            const size = GAME_CONFIG.INGREDIENT_SIZE * 5.0;
-            ctx.save();
-            ctx.translate(centerX, centerY);
-            
-            // Add a glow effect
-            ctx.shadowColor = '#FFD700';
-            ctx.shadowBlur = 20;
-            
-            ctx.drawImage(
-                ultimateImage,
-                -size/2,
-                -size/2,
-                size,
-                size
-            );
-            ctx.restore();
-        } else {
-            console.error('Ultimate Pizza image not loaded properly');
-            // Fallback to a colored circle with glow
-            ctx.save();
-            ctx.shadowColor = '#FFD700';
-            ctx.shadowBlur = 20;
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, GAME_CONFIG.INGREDIENT_SIZE * 2.5, 0, Math.PI * 2);
-            ctx.fillStyle = '#FF4500';
-            ctx.fill();
-            ctx.strokeStyle = '#FFD700';
-            ctx.lineWidth = 3;
-            ctx.stroke();
-            ctx.restore();
-        }
-    }
-
-    showUltimateBonusEffect(totalBonus, remainingIngredients) {
-        // Create and show bonus text element
-        const bonusText = document.createElement('div');
-        bonusText.className = 'ultimate-bonus';
-        bonusText.textContent = `ULTIMATE PIZZA! +${totalBonus}`;
-        if (remainingIngredients > 0) {
-            bonusText.textContent += `\n+${remainingIngredients * 1000} BONUS (${remainingIngredients} ingredients)`;
-        }
-        document.getElementById('game-screen').appendChild(bonusText);
-
-        // Remove the element after 1.5 seconds (matching the static display time)
-        setTimeout(() => {
-            bonusText.remove();
-        }, 1500);
     }
 
     showComboEffect(score) {
