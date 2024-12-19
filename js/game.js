@@ -316,52 +316,54 @@ class Game {
             // Add the total bonus to the score
             const totalBonus = ultimateBonus + extraBonus;
             
-            // Desabilitar física e spawn durante a exibição
+            // Disable physics and spawn during display
             this.canSpawnNew = false;
             this.isStabilizing = true;
             
-            // Pausar o motor de física
+            // Stop the physics engine and clear any pending forces
             Matter.Runner.stop(this.engine);
+            Matter.Engine.clear(this.engine);
             
-            // Log para verificar se a imagem está sendo carregada
+            // Get the Ultimate Pizza image
             const ultimateImage = INGREDIENT_IMAGES[INGREDIENT_TYPES.ULTIMATE_PIZZA];
-            console.log('Ultimate Pizza Image:', ultimateImage);
-            console.log('Image path:', ultimateImage.src);
-            console.log('Image loaded:', ultimateImage.complete);
             
-            // Mostrar imagem estática da Ultimate Pizza e pontuação
+            // Show static display and bonus
             this.showStaticUltimatePizza(totalBonus, remainingIngredients);
             this.showUltimateBonusEffect(totalBonus, remainingIngredients);
             
-            // Tocar som de fusão
+            // Play fusion sound
             this.audioManager.playFusionSound();
             
-            // Atualizar a pontuação após mostrar o efeito
+            // Update score and UI
             this.score += totalBonus;
-            this.updateUI(); // Forçar atualização imediata da UI
+            this.updateUI();
             
-            // Limpar após 1.5 segundos
+            // Clean up and reset after animation
             setTimeout(() => {
-                // Clear all ingredients
+                // Clear all ingredients and reset physics
                 this.ingredientManager.clearAllIngredients();
+                Matter.Engine.clear(this.engine);
                 
-                // Reset combo e estados
+                // Reset game state
                 this.comboMultiplier = 1;
                 this.fusionsInDrop = 0;
                 this.isStabilizing = false;
                 
-                // Garantir que todas as paredes estão ativas e na posição correta
+                // Reset wall physics
                 this.walls.forEach(wall => {
                     Matter.Body.setStatic(wall, true);
+                    Matter.Body.setVelocity(wall, { x: 0, y: 0 });
+                    Matter.Body.setAngularVelocity(wall, 0);
                     Matter.Sleeping.set(wall, false);
                 });
                 
-                // Reiniciar o motor de física
+                // Restart physics engine
                 Matter.Runner.start(this.engine);
                 
-                // Pequeno delay antes de permitir novo spawn
+                // Allow new spawns after physics is stable
                 setTimeout(() => {
                     this.canSpawnNew = true;
+                    this.lastDropTime = Date.now();
                 }, 100);
             }, 1500);
         } else if (fusionResult.fusions > 0) {
@@ -421,25 +423,37 @@ class Game {
         const centerY = canvas.height / 2;
         
         // Draw the Ultimate Pizza image centered
-        if (ultimateImage && ultimateImage.complete) {
-            const size = GAME_CONFIG.INGREDIENT_SIZE * 5.0; // Using the same scale as before
+        if (ultimateImage && ultimateImage.complete && ultimateImage.naturalHeight !== 0) {
+            const size = GAME_CONFIG.INGREDIENT_SIZE * 5.0;
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            
+            // Add a glow effect
+            ctx.shadowColor = '#FFD700';
+            ctx.shadowBlur = 20;
+            
             ctx.drawImage(
                 ultimateImage,
-                centerX - size/2,
-                centerY - size/2,
+                -size/2,
+                -size/2,
                 size,
                 size
             );
+            ctx.restore();
         } else {
             console.error('Ultimate Pizza image not loaded properly');
-            // Fallback to a colored circle
+            // Fallback to a colored circle with glow
+            ctx.save();
+            ctx.shadowColor = '#FFD700';
+            ctx.shadowBlur = 20;
             ctx.beginPath();
             ctx.arc(centerX, centerY, GAME_CONFIG.INGREDIENT_SIZE * 2.5, 0, Math.PI * 2);
             ctx.fillStyle = '#FF4500';
             ctx.fill();
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 3;
             ctx.stroke();
+            ctx.restore();
         }
     }
 
